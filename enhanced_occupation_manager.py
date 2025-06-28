@@ -26,6 +26,14 @@ MONGO_CONNECTION_STRING = f"mongodb+srv://{username}:{password}@clusterrd4u.7180
 # Назва бази даних
 DATABASE_NAME = "ua_admin_territory"
 
+# Конфігурація документа
+DOCUMENT_CONFIG = {
+    'document_name': 'Перелік 07052025',
+    'document_date': '07.05.2025',  # Читабельний формат дати
+    'document_date_iso': '2025-05-07',  # ISO формат для системних потреб
+    'document_description': 'Документ Перелік 07052025 від 7 травня 2025 року'
+}
+
 class TerritoryStatus(Enum):
     """Статуси територій згідно з документом Перелік 07052025"""
     POSSIBLE_COMBAT = "1. Території можливих бойових дій"
@@ -202,6 +210,8 @@ def add_territory_status_period(client, territory_name, status, start_date, end_
         'start_date': start_date,
         'end_date': end_date,
         'source_document': source_document,
+        'document_date': DOCUMENT_CONFIG['document_date'],  # Читабельний формат
+        'document_date_iso': DOCUMENT_CONFIG['document_date_iso'],  # ISO формат
         'updated_at': datetime.now()
     }
     
@@ -353,7 +363,7 @@ def import_from_perelik_document(client, document_data):
                     status, 
                     start_date, 
                     end_date,
-                    source_document="Перелік 07052025",
+                    source_document=DOCUMENT_CONFIG['document_name'],
                     additional_data={
                         'territory_code': territory_code,
                         'table_source': table_index
@@ -471,8 +481,12 @@ def show_enhanced_statistics(client):
     total_territories = 0
     territories_with_history = 0
     status_counts = {}
+    document_dates = set()
     
     print("\n📈 РОЗШИРЕНА СТАТИСТИКА СТАТУСІВ ТЕРИТОРІЙ:")
+    print("-" * 50)
+    print(f"📄 Документ: {DOCUMENT_CONFIG['document_name']}")
+    print(f"📅 Дата документа: {DOCUMENT_CONFIG['document_date']}")
     print("-" * 50)
     
     for collection_name in collections:
@@ -496,7 +510,7 @@ def show_enhanced_statistics(client):
         print(f"  Загалом територій: {total_in_collection}")
         print(f"  З історією статусів: {with_history}")
         
-        # Підрахунок по статусах
+        # Підрахунок по статусах та збір дат документів
         territories = collection.find({
             "$or": [
                 {"occupation_history": {"$exists": True}},
@@ -513,10 +527,19 @@ def show_enhanced_statistics(client):
                         if status not in status_counts:
                             status_counts[status] = 0
                         status_counts[status] += 1
+                        
+                        # Збираємо дати документів
+                        if 'document_date' in period:
+                            document_dates.add(period['document_date'])
     
     print(f"\n📊 ЗАГАЛЬНА СТАТИСТИКА:")
     print(f"  Загалом територій: {total_territories}")
     print(f"  З історією статусів: {territories_with_history}")
+    
+    if document_dates:
+        print(f"\n📅 ДАТИ ДОКУМЕНТІВ У БАЗІ:")
+        for doc_date in sorted(document_dates):
+            print(f"  • {doc_date}")
     
     print(f"\n📋 РОЗПОДІЛ ПО СТАТУСАХ:")
     for status, count in sorted(status_counts.items()):
@@ -526,6 +549,9 @@ def show_enhanced_menu():
     """Показ розширеного головного меню"""
     print("\n" + "=" * 60)
     print("🏛️  РОЗШИРЕНИЙ МЕНЕДЖЕР СТАТУСІВ ТЕРИТОРІЙ")
+    print("=" * 60)
+    print(f"📄 Документ: {DOCUMENT_CONFIG['document_name']}")
+    print(f"📅 Дата документа: {DOCUMENT_CONFIG['document_date']}")
     print("=" * 60)
     print("1. 🔍 Перевірити статус території на конкретну дату")
     print("2. 📋 Показати історію статусів території")

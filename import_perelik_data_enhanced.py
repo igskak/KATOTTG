@@ -28,9 +28,10 @@ DATABASE_NAME = "ua_admin_territory"
 # Конфігурація імпорту
 IMPORT_CONFIG = {
     'document_name': 'Перелік 07052025',
-    'document_date': '2025-05-07',
+    'document_date': '07.05.2025',  # Більш читабельний формат дати
+    'document_date_iso': '2025-05-07',  # ISO формат для системних потреб
     'import_version': '1.0',
-    'import_description': 'Перший імпорт даних з документа Перелік 07052025'
+    'import_description': 'Перший імпорт даних з документа Перелік 07052025 від 7 травня 2025 року'
 }
 
 class TerritoryStatus(Enum):
@@ -62,7 +63,8 @@ def create_import_session(client):
     import_session = {
         'import_id': hashlib.md5(f"{IMPORT_CONFIG['document_name']}_{datetime.now().isoformat()}".encode()).hexdigest()[:12],
         'document_name': IMPORT_CONFIG['document_name'],
-        'document_date': IMPORT_CONFIG['document_date'],
+        'document_date': IMPORT_CONFIG['document_date'],  # Читабельний формат
+        'document_date_iso': IMPORT_CONFIG['document_date_iso'],  # ISO формат
         'import_version': IMPORT_CONFIG['import_version'],
         'import_description': IMPORT_CONFIG['import_description'],
         'import_start_time': datetime.now(timezone.utc),
@@ -319,7 +321,8 @@ def add_status_period_to_territory(client, territory_doc, collection_name, statu
         'start_date': start_date,
         'end_date': end_date,
         'source_document': IMPORT_CONFIG['document_name'],
-        'document_date': IMPORT_CONFIG['document_date'],
+        'document_date': IMPORT_CONFIG['document_date'],  # Читабельний формат
+        'document_date_iso': IMPORT_CONFIG['document_date_iso'],  # ISO формат
         'import_id': import_id,
         'import_version': IMPORT_CONFIG['import_version'],
         'import_timestamp': datetime.now(timezone.utc),
@@ -500,9 +503,13 @@ def show_import_statistics(client):
     
     print("\n📈 СТАТИСТИКА ПІСЛЯ ІМПОРТУ:")
     print("-" * 40)
+    print(f"📄 Документ: {IMPORT_CONFIG['document_name']}")
+    print(f"📅 Дата документа: {IMPORT_CONFIG['document_date']}")
+    print("-" * 40)
     
     total_with_status = 0
     status_counts = {}
+    document_dates = set()
     
     for collection_name in collections:
         collection = db[collection_name]
@@ -519,7 +526,7 @@ def show_import_statistics(client):
         
         print(f"{collection_name}: {with_status} територій зі статусами")
         
-        # Підрахунок по статусах
+        # Підрахунок по статусах та збір дат документів
         territories = collection.find({
             "$or": [
                 {"occupation_history": {"$exists": True}},
@@ -536,9 +543,18 @@ def show_import_statistics(client):
                         if status not in status_counts:
                             status_counts[status] = 0
                         status_counts[status] += 1
+                        
+                        # Збираємо дати документів
+                        if 'document_date' in period:
+                            document_dates.add(period['document_date'])
     
     print(f"\n📊 ЗАГАЛЬНА СТАТИСТИКА:")
     print(f"Територій зі статусами: {total_with_status}")
+    
+    if document_dates:
+        print(f"\n📅 ДАТИ ДОКУМЕНТІВ У БАЗІ:")
+        for doc_date in sorted(document_dates):
+            print(f"  • {doc_date}")
     
     print(f"\n📋 РОЗПОДІЛ ПО СТАТУСАХ:")
     for status, count in sorted(status_counts.items()):
